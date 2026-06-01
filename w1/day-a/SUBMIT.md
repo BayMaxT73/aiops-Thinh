@@ -96,12 +96,10 @@ For production, I would choose `Isolation Forest`. If the goal is maximum recall
 - Knowledge check photo 2: `deliverables/w1_day_a/photos/knowledge_check2.jpg`
 - Knowledge check photo 3: `deliverables/w1_day_a/photos/knowledge_check3.jpg`
 
-## Remaining Manual Item
+## Knowledge Check
 
-The handwritten knowledge check photos are the only deliverables I could not produce automatically. They are included at:
+The handwritten knowledge check photos are included at:
 
 - `deliverables/w1_day_a/photos/knowledge_check1.jpg`
 - `deliverables/w1_day_a/photos/knowledge_check2.jpg`
 - `deliverables/w1_day_a/photos/knowledge_check3.jpg`
-
-The implementation and analysis above are complete and can be used to prepare that final manual submission item.
