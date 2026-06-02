@@ -1,41 +1,41 @@
 # W1 Day-B Submission
 
-## Dataset Used
+## Du lieu su dung
 
-This submission uses real Loghub data copied into `w1/day-b/data` so the submission is self-contained:
+Submission nay su dung du lieu Loghub that, da duoc copy vao `w1/day-b/data` de bai nop tu chua day du:
 
-- primary dataset: `data/BGL_2k.log`
-- comparison dataset: `data/HDFS_2k.log`
+- du lieu chinh: `data/BGL_2k.log`
+- du lieu de so sanh: `data/HDFS_2k.log`
 
-Why BGL is the primary dataset:
+Ly do chon BGL lam du lieu chinh:
 
-- the raw BGL log includes alert categories in the first column
-- that makes precision, recall, and F1 evaluation possible on real data
+- log raw cua BGL co nhan alert o cot dau tien
+- dieu do cho phep tinh precision, recall va F1 tren du lieu that
 
-Why HDFS is used as comparison:
+Ly do dung HDFS de so sanh:
 
-- HDFS is still a strong dataset for template mining and cross-dataset analysis
-- the Loghub subset copied into this workspace contains `HDFS_2k.log`, but does not include `anomaly_label.csv` next to that subset
-- because of that, using HDFS for precision/recall in this local repo state would require labels that are not present in the clone
-- therefore, this notebook evaluates anomaly detection on labeled BGL data and still uses real HDFS logs for parsing and comparison
+- HDFS van la dataset rat phu hop cho bai toan khai pha template
+- ban subset Loghub duoc copy vao workspace nay co `HDFS_2k.log`, nhung khong co `anomaly_label.csv` di kem
+- vi vay, neu dung HDFS de tinh precision/recall trong trang thai repo hien tai thi se thieu nhan
+- do do notebook tinh metric anomaly tren BGL co nhan, dong thoi van dung HDFS that cho phan parse va so sanh hai dataset
 
-Note on the assignment wording:
+Luu y ve wording cua de:
 
-- the original prompt suggests HDFS because HDFS is known to have labels in Loghub
-- in this local clone, the directly usable labeled subset is BGL, while the directly usable HDFS subset is unlabeled
-- to keep the submission fully runnable from the current workspace without inventing labels, anomaly metrics are computed on BGL and parsing/comparison are still performed on HDFS
+- de goi y HDFS vi HDFS duoc biet den la co label trong Loghub
+- nhung trong ban clone/local subset hien tai, BGL la tap co nhan dung ngay duoc, con HDFS subset dang khong co file label di kem
+- de giu cho bai nop chay duoc hoan toan trong workspace hien tai va khong tu tao label, metric anomaly duoc tinh tren BGL, con HDFS duoc dung cho parsing va cross-dataset comparison
 
-## Phase 1: Parse Log with Drain3
+## Phase 1: Parse log voi Drain3
 
-### Primary dataset summary
+### Tom tat du lieu chinh
 
 - dataset: `BGL_2k.log`
-- total lines: `2,000`
-- unique templates at `sim_th=0.5`: `151`
+- tong so dong log: `2,000`
+- so template unique voi `sim_th=0.5`: `151`
 
 ### Top-10 templates
 
-Exported to `results/top_templates.csv`.
+Da export ra `results/top_templates.csv`.
 
 | template_id | count | template |
 |---|---:|---|
@@ -50,93 +50,93 @@ Exported to `results/top_templates.csv`.
 | 118 | 59 | `- <*> 2005.11.03 <*> <*> <*> RAS KERNEL INFO iar <*> dear <*>` |
 | 137 | 51 | `- <*> 2005.12.01 <*> <*> <*> RAS KERNEL INFO 0 microseconds spent ...` |
 
-### sim_th tuning
+### Tune sim_th
 
-Saved to `results/tuning_results.csv`.
+Da luu vao `results/tuning_results.csv`.
 
-| sim_th | templates | avg_cluster_size |
+| sim_th | so template | avg_cluster_size |
 |---|---:|---:|
 | 0.3 | 73 | 27.40 |
 | 0.5 | 151 | 13.25 |
 | 0.7 | 1459 | 1.37 |
 
-Chosen value: `0.5`
+Gia tri duoc chon: `0.5`
 
-Reason:
+Ly do:
 
-- `0.3` groups too aggressively
-- `0.7` fragments the data into too many tiny templates
-- `0.5` is the best tradeoff between grouping quality and interpretability
+- `0.3` gom cum qua tay
+- `0.7` lam vo cum thanh qua nhieu template nho
+- `0.5` la diem can bang tot nhat giua grouping va interpretability
 
-## Phase 2: Anomaly Detection on Logs
+## Phase 2: Anomaly detection tren log
 
 ### Template count time series
 
 - dataset: `BGL_2k.log`
-- window size: `30 minutes`
-- baseline series used for anomaly detection: `unique template count per window`
-- output plot: `results/template_count_timeseries.png`
+- kich thuoc cua so: `30 minutes`
+- chuoi baseline dung de detect anomaly: `unique template count per window`
+- file plot: `results/template_count_timeseries.png`
 
-Embedded plot:
+Plot:
 
 ![Template Count Time Series](results/template_count_timeseries.png)
 
-### Detection setup
+### Cach detect
 
-- aggregate logs into 30-minute windows
-- build a time series from the number of unique templates in each window
-- run `3-sigma`
-- run `Isolation Forest`
-- treat a window as anomalous if any BGL alert label appears in that window
+- gom log theo cua so 30 phut
+- tao time series tu so template unique trong moi cua so
+- chay `3-sigma`
+- chay `Isolation Forest`
+- coi mot cua so la anomalous neu trong cua so do co bat ky BGL alert label nao xuat hien
 
-### Results
+### Ket qua
 
-- `3-sigma` anomalies detected: `4`
-- `Isolation Forest` anomalies detected: see notebook output in `assignment.ipynb`
+- so anomaly do `3-sigma` phat hien: `4`
+- ket qua `Isolation Forest`: duoc ghi trong `assignment.ipynb`
 
-Evaluation against BGL alert labels:
+Danh gia voi BGL alert labels:
 
 - `3-sigma`: precision `0.500`, recall `0.035`, f1 `0.066`
 - `Isolation Forest`: precision `0.167`, recall `0.035`, f1 `0.058`
 
-Interpretation:
+Nhan xet:
 
-- switching from total log count to unique template count made the anomaly signal more aligned with the assignment intent
-- even so, real BGL data remains hard for simple window-level detectors
-- template diversity is more informative than raw volume, but still not enough by itself for strong recall
+- viec chuyen tu tong so log sang so template unique theo window lam tin hieu anomaly sat hon voi y de bai
+- tuy vay, du lieu BGL that van kho doi voi cac detector don gian o muc window
+- template diversity mang nhieu tin hieu hon raw volume, nhung van chua du de dat recall cao
 
-### Spike and new-template findings
+### Spike va new template
 
-- several templates spike in specific windows, especially kernel and fatal event patterns
-- new templates in the final 10% of logs: `15`
+- mot so template spike o cac window cu the, dac biet la cac nhom kernel va fatal event
+- so template moi xuat hien trong 10% cuoi cua chuoi log: `15`
 
-## Phase 3: Embedding + Cross-signal
+## Phase 3: Embedding va cross-signal
 
-### TF-IDF clustering
+### Cum template bang TF-IDF
 
 - vectorization: character n-grams `(2, 3)`
-- similarity threshold for clustering: `0.7`
-- clusters found above threshold: `4`
+- nguong similarity de tao cum: `0.7`
+- so cum tim duoc tren nguong nay: `4`
 
-Observed cluster themes:
+Chu de cac cum quan sat duoc:
 
-1. repeated kernel info families
-2. fatal application or kernel failure families
-3. hardware / interrupt-related patterns
-4. repeated generated-status message families
+1. cac ho kernel info lap lai
+2. cac ho loi fatal o muc application hoac kernel
+3. cac pattern lien quan toi hardware / interrupt
+4. cac pattern generated-status lap lai
 
-### Novel log injection
+### Inject log la
 
-Injected line:
+Dong log da inject:
 
 ```text
 GPUFAIL 1119999999 2005.06.20 R99-M9-N9-C:J99-U99 2005-06-20-23.59.59.999999 R99-M9-N9-C:J99-U99 RAS APP FATAL accelerator parity fault on memory controller
 ```
 
-Result:
+Ket qua:
 
-- Drain3 change type: `cluster_created`
-- a new template was created successfully
+- Drain3 tra ve change type: `cluster_created`
+- he thong tao ra mot template moi thanh cong
 
 ## Phase 4: Mini Log Analyzer
 
@@ -144,155 +144,40 @@ Result:
 
 File: `scripts/log_analyzer.py`
 
-Run:
+Cach chay:
 
 ```powershell
 python scripts\log_analyzer.py data\BGL_2k.log
 python scripts\log_analyzer.py data\HDFS_2k.log
 ```
 
-The script prints:
+Script in ra:
 
-- total lines
-- unique templates
-- top-5 templates with counts and percentages
-- templates with spikes in the last hour
-- new templates in the last hour
+- tong so dong
+- so template unique
+- top-5 template voi count va percentage
+- template spike trong 1 gio gan nhat
+- new template trong 1 gio gan nhat
 
-### Cross-dataset comparison
+### So sanh hai dataset
 
-Saved to `results/dataset_comparison.csv`.
+Da luu vao `results/dataset_comparison.csv`.
 
 | dataset | total_logs | unique_templates | avg_cluster_size |
 |---|---:|---:|---:|
 | BGL | 2000 | 151 | 13.25 |
 | HDFS | 2000 | 21 | 95.24 |
 
-Why BGL has more templates in this run:
+Ly do BGL co nhieu template hon trong lan chay nay:
 
-- the BGL subset contains many distinct error and kernel event families
-- the HDFS subset is more repetitive and groups into fewer, larger clusters
+- BGL subset chua nhieu ho su kien kernel va error khac nhau
+- HDFS subset lap lai nhieu hon nen Drain3 gom thanh it cluster hon va cluster to hon
 
 ## Reflection
 
-### Drain3 parse tot khong?
-
-Co. Drain3 hoat dong tot tren ca hai dataset that:
-
-- voi `BGL_2k`, no tach duoc nhieu ho template khac nhau, dac biet o cac log kernel va fatal
-- voi `HDFS_2k`, no gom log rat gon, chi con `21` templates cho `2,000` dong
-
-Diem manh:
-
-- khong can viet regex thu cong tu dau
-- xu ly tot cac token thay doi nhu timestamp, node id, block id
-- phu hop de chuyen raw logs thanh cac tin hieu co the dem va phan tich
-
-Diem yeu:
-
-- rat nhay voi `sim_th`
-- neu `sim_th` qua cao thi template bi vo vun
-- neu chi dung mot tin hieu don gian o muc window thi hieu qua anomaly detection van con thap tren du lieu that nhu BGL
-
-### Template nao cho insight?
-
-Dang chu y nhat:
-
-- cac template `RAS APP FATAL` hoac `RAS KERNEL FATAL`
-- cac template kernel info lap bat thuong
-- cac template moi xuat hien gan cuoi chuoi log
-
-It gia tri hon:
-
-- cac INFO lap deu va rat pho bien
-- cac template chi phan anh hoat dong nen binh thuong
-
-### Metric va log khac nhau the nao?
-
-- metric cho biet trang thai tong quat cua he thong theo thoi gian
-- log cho biet su kien cu the nao da xay ra
-
-Ket hop lai:
-
-- metric giup biet khi nao co van de
-- log parsing giup biet chuyen gi da xay ra va thuoc ho su kien nao
-
-## Knowledge Check
-
-Handwritten pages:
-
-![Handwritten Knowledge Check 1](image.png)
-
-![Handwritten Knowledge Check 2](image-1.png)
-
-### 1. Drain3 parse tree hoat dong the nao?
-
-So do don gian:
-
-```text
-root
- └─ bucket theo so token
-     └─ branch theo token khoa
-         └─ branch theo vi tri token
-             └─ candidate templates
-```
-
-Luong xu ly:
-
-1. tach log thanh token
-2. di qua cay theo so token va token dac trung
-3. so sanh voi candidate templates bang do tuong tu
-4. neu du giong thi cap nhat cluster cu
-5. neu khong du giong thi tao cluster moi
-
-### 2. Vi sao can log parsing thay vi grep?
-
-`grep` chi loc chuoi tho.
-
-Vi du:
-
-```text
-APPREAD ... failed to read message prefix ...
-APPREAD ... failed to read message prefix ...
-APPREAD ... failed to read message prefix ...
-```
-
-`grep` thay nhieu dong khac nhau vi khac node, khac thoi gian.  
-Drain3 gom chung thanh mot template chung, tu do moi dem tan suat va phat hien spike duoc.
-
-### 3. Template count time series la gi?
-
-La chuoi thoi gian trong do moi diem la so luong template hoac so lan xuat hien cua template trong mot cua so co dinh.
-
-Trong notebook nay, tin hieu chinh duoc dung la:
-
-- so template unique trong moi cua so 30 phut
-
-Vi sao dung de detect anomaly:
-
-- thay duoc spike theo thoi gian
-- chuyen log su kien roi rac thanh tin hieu dinh luong
-- giup ap dung 3-sigma hoac Isolation Forest
-
-### 4. Vi sao template moi la tin hieu quan trong?
-
-Template moi nghia la he thong dang sinh ra kieu su kien chua tung thay truoc do.
-
-Do thuong la dau hieu cua:
-
-- loi moi
-- trang thai moi
-- thay doi cau hinh hoac thay doi hanh vi he thong
-
-### 5. Metric cho biet gi, log cho biet gi?
-
-- metric: muc do, xu huong, tinh trang tong quat
-- log: su kien chi tiet, noi dung cu the, ngu canh van hanh
-
-Khi ket hop:
-
-- metric tra loi cau hoi "khi nao co van de?"
-- log tra loi cau hoi "van de do la gi va den tu dau?"
+- Drain3 parse tot tren ca BGL va HDFS, nhung rat nhay voi `sim_th`
+- cac template `RAS APP FATAL`, `RAS KERNEL FATAL`, va cac template moi xuat hien mang nhieu insight nhat
+- metric cho biet xu huong tong quat, con log cho biet su kien cu the; ket hop ca hai se tot hon cho phan root-cause analysis
 
 ## Files Included
 
