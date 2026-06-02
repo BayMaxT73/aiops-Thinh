@@ -1,0 +1,11 @@
+template_id,template,count
+1,"<*> INFO hdfs.server: Block <*> <*>",145000
+2,"<*> WARNING hdfs.fsck: ERROR",98000
+3,"<*> INFO hdfs.datanode: Received block <*>",87000
+4,"<*> DEBUG hdfs.rpc: Call",76000
+5,"<*> ERROR hdfs.namenode: Exception",54000
+6,"<*> INFO hdfs.server: Registered DataNode",32000
+7,"<*> WARN hdfs.block: Received <*> from",28000
+8,"<*> INFO hdfs.security: Permission denied",19000
+9,"<*> DEBUG hdfs.protocol: Sending packet",15000
+10,"<*> ERROR hdfs.lease: No lease",12000
