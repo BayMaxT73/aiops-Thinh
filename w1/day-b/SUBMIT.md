@@ -1,324 +1,305 @@
-# W1 Day-B: Log Parsing with Drain3 and Anomaly Detection
+# W1 Day-B Submission
 
-## Assignment Submission
+## Dataset Used
 
-### Phase 1: Log Parsing with Drain3
+This submission uses real Loghub data copied into `w1/day-b/data` so the submission is self-contained:
 
-#### Dataset
-- **Source**: Loghub - HDFS Distributed File System logs
-- **Total logs**: 655,000+ log lines
-- **Time range**: Multiple days of system operations
-- **Format**: Structured timestamp + message format
+- primary dataset: `data/BGL_2k.log`
+- comparison dataset: `data/HDFS_2k.log`
 
-#### Drain3 Parsing Results
-- **Unique templates created**: 1,100+ (with sim_th=0.5)
-- **Similarity threshold tuning**:
-  - sim_th = 0.3: ~800 templates (more grouping)
-  - sim_th = 0.5: ~1,100 templates (balanced)
-  - sim_th = 0.7: ~1,500 templates (more granularity)
-- **Recommended threshold**: 0.5 (balances interpretability with granularity)
+Why BGL is the primary dataset:
 
-#### Top-10 Templates (by frequency)
-| Template ID | Template Pattern | Occurrences |
-|---|---|---|
-| 1 | `<*> INFO hdfs.server: Block <*> <*> | 145,000+ |
-| 2 | `<*> WARNING hdfs.fsck: ERROR | 98,000+ |
-| 3 | `<*> INFO hdfs.datanode: Received block <*> | 87,000+ |
-| 4 | `<*> DEBUG hdfs.rpc: Call | 76,000+ |
-| 5 | `<*> ERROR hdfs.namenode: Exception | 54,000+ |
-| 6 | `<*> INFO hdfs.server: Registered DataNode | 32,000+ |
-| 7 | `<*> WARN hdfs.block: Received <*> from | 28,000+ |
-| 8 | `<*> INFO hdfs.security: Permission denied | 19,000+ |
-| 9 | `<*> DEBUG hdfs.protocol: Sending packet | 15,000+ |
-| 10 | `<*> ERROR hdfs.lease: No lease | 12,000+ |
+- the raw BGL log includes alert categories in the first column
+- that makes precision, recall, and F1 evaluation possible on real data
 
----
+Why HDFS is used as comparison:
 
-### Phase 2: Anomaly Detection on Log Templates
+- HDFS is still a strong dataset for template mining and cross-dataset analysis
+- the Loghub subset copied into this workspace contains `HDFS_2k.log`, but does not include `anomaly_label.csv` next to that subset
+- because of that, using HDFS for precision/recall in this local repo state would require labels that are not present in the clone
+- therefore, this notebook evaluates anomaly detection on labeled BGL data and still uses real HDFS logs for parsing and comparison
 
-#### Time Series Analysis
-- **Window size**: 5 minutes
-- **Total windows**: 200+ time windows
-- **Methods applied**:
-  1. **3-Sigma Rule**: Detects spikes beyond 3 standard deviations
-  2. **Isolation Forest**: ML-based anomaly detection
+Note on the assignment wording:
 
-#### Anomaly Detection Results
-- **3-Sigma anomalies**: 15-20 time windows detected
-- **Isolation Forest anomalies**: 10-15 instances
-- **Anomalous templates**: Several critical error templates show unexpected spikes
-- **New templates**: 25+ new templates appear in final 10% of logs
+- the original prompt suggests HDFS because HDFS is known to have labels in Loghub
+- in this local clone, the directly usable labeled subset is BGL, while the directly usable HDFS subset is unlabeled
+- to keep the submission fully runnable from the current workspace without inventing labels, anomaly metrics are computed on BGL and parsing/comparison are still performed on HDFS
 
-#### Key Findings
-- **Template spikes**: ERROR and WARNING templates spike during specific periods
-- **New templates emergence**: New templates often correlate with system state changes
-- **Temporal patterns**: Morning hours show higher log volumes
-- **Critical patterns**: Lease and block-related errors appear clustered
+## Phase 1: Parse Log with Drain3
 
----
+### Primary dataset summary
 
-### Phase 3: Embedding and Template Clustering
+- dataset: `BGL_2k.log`
+- total lines: `2,000`
+- unique templates at `sim_th=0.5`: `151`
 
-#### TF-IDF Analysis
-- **Top templates analyzed**: 50 templates
-- **Feature vectors**: Character-level n-grams (2-3 grams)
-- **Similarity threshold for clustering**: 0.7
+### Top-10 templates
 
-#### Template Clusters Discovered
-1. **Block Operation Cluster**: Related to HDFS block operations
-   - Templates about "Block received", "Block stored", etc.
-   - High internal similarity (0.75+)
+Exported to `results/top_templates.csv`.
 
-2. **Error/Exception Cluster**: System errors and exceptions
-   - ERROR templates grouped together
-   - WARNING templates form separate sub-cluster
+| template_id | count | template |
+|---|---:|---|
+| 73 | 180 | `- <*> 2005.07.09 <*> <*> <*> RAS KERNEL INFO generating <*>` |
+| 85 | 121 | `- <*> <*> <*> <*> <*> RAS KERNEL INFO <*> floating point alignment exceptions` |
+| 2 | 109 | `- <*> <*> <*> <*> <*> RAS KERNEL INFO <*> double-hummer alignment exceptions` |
+| 3 | 92 | `- <*> <*> <*> <*> <*> RAS KERNEL INFO CE sym <*> at <*> mask <*>` |
+| 77 | 87 | `- <*> 2005.07.13 <*> <*> <*> RAS KERNEL INFO generating <*>` |
+| 138 | 71 | `- <*> 2005.12.01 <*> <*> <*> RAS KERNEL INFO <*> total interrupts ...` |
+| 119 | 61 | `- <*> 2005.11.04 <*> <*> <*> RAS KERNEL INFO iar <*> dear <*>` |
+| 14 | 60 | `KERNDTLB <*> 2005.06.11 R30-M0-N9-C:J16-U01 <*> ... data TLB error interrupt` |
+| 118 | 59 | `- <*> 2005.11.03 <*> <*> <*> RAS KERNEL INFO iar <*> dear <*>` |
+| 137 | 51 | `- <*> 2005.12.01 <*> <*> <*> RAS KERNEL INFO 0 microseconds spent ...` |
 
-3. **RPC Communication Cluster**: Remote procedure calls
-   - Protocol-related templates
-   - Communication patterns
+### sim_th tuning
 
-#### Synthetic Anomaly Injection Test
-```
-Injected Log: "2008-07-01 00:15:30 IP_ADDRESS CRITICAL_SYSTEM_FAILURE: 
-Unexpected_Hardware_Error DISK_CORRUPTED MemoryViolation UnknownProcessID"
+Saved to `results/tuning_results.csv`.
 
-Result: ✓ NEW TEMPLATE CREATED
-- Did not match any existing template
-- Drain3 successfully created new template ID
-- Proves robustness for novel patterns
-```
+| sim_th | templates | avg_cluster_size |
+|---|---:|---:|
+| 0.3 | 73 | 27.40 |
+| 0.5 | 151 | 13.25 |
+| 0.7 | 1459 | 1.37 |
 
----
+Chosen value: `0.5`
 
-### Phase 4: Multi-Dataset Log Analyzer
+Reason:
 
-#### Script Capabilities
-The `log_analyzer.py` script provides:
-- Total log line count
-- Unique template count
-- Top-5 templates with percentages
-- Template spike detection
-- New template identification
+- `0.3` groups too aggressively
+- `0.7` fragments the data into too many tiny templates
+- `0.5` is the best tradeoff between grouping quality and interpretability
 
-#### Dataset Comparison: HDFS vs BGL
+## Phase 2: Anomaly Detection on Logs
 
-| Metric | HDFS | BGL | Difference |
-|---|---|---|---|
-| Total Logs | 655,000 | 100,000* | HDFS 6.5x larger |
-| Unique Templates | 1,100 | 450 | HDFS 2.4x more diverse |
-| Avg Cluster Size | 595 | 222 | HDFS logs more repetitive |
-| Log Diversity | Medium | Low | BGL more structured |
+### Template count time series
 
-*BGL subset used for testing (first 100k lines)
+- dataset: `BGL_2k.log`
+- window size: `30 minutes`
+- baseline series used for anomaly detection: `unique template count per window`
+- output plot: `results/template_count_timeseries.png`
 
-#### Why Different Template Counts?
+Embedded plot:
 
-**HDFS** (Distributed File System):
-- Highly variable log types (block ops, RPC, fsck, security, etc.)
-- Frequent state changes lead to diverse templates
-- Each component (datanode, namenode) produces unique patterns
+![Template Count Time Series](results/template_count_timeseries.png)
 
-**BGL** (Supercomputer Logs):
-- More structured log format
-- Repetitive patterns from batch job execution
-- Simpler logging with fewer message types
-- High redundancy in job completion messages
+### Detection setup
 
----
+- aggregate logs into 30-minute windows
+- build a time series from the number of unique templates in each window
+- run `3-sigma`
+- run `Isolation Forest`
+- treat a window as anomalous if any BGL alert label appears in that window
 
-## Screenshots
+### Results
 
-### Time Series with Anomaly Detection
-- **File**: `results/template_count_timeseries.png`
-- **Shows**: 
-  - Template count fluctuations over time
-  - 3-Sigma threshold lines (upper and lower)
-  - Anomaly points highlighted in red
-  - Mean and baseline for reference
+- `3-sigma` anomalies detected: `4`
+- `Isolation Forest` anomalies detected: see notebook output in `assignment.ipynb`
 
-### Dataset Comparison Chart
-- **File**: `results/dataset_comparison.csv`
-- **Visualizes**: HDFS vs BGL characteristics
+Evaluation against BGL alert labels:
 
----
+- `3-sigma`: precision `0.500`, recall `0.035`, f1 `0.066`
+- `Isolation Forest`: precision `0.167`, recall `0.035`, f1 `0.058`
 
-## Reflection on Drain3 and Log Analysis
+Interpretation:
 
-### How Well Does Drain3 Work?
+- switching from total log count to unique template count made the anomaly signal more aligned with the assignment intent
+- even so, real BGL data remains hard for simple window-level detectors
+- template diversity is more informative than raw volume, but still not enough by itself for strong recall
 
-**Strengths**:
-1. ✓ **Effective template clustering**: Groups similar logs correctly
-2. ✓ **Scalable**: Handles 600k+ logs efficiently
-3. ✓ **Configurable**: Similarity threshold allows tuning
-4. ✓ **Novel pattern detection**: Creates new templates for unseen patterns
-5. ✓ **Interpretable**: Templates are human-readable
+### Spike and new-template findings
 
-**Limitations**:
-1. ✗ **Parameter sensitivity**: Results vary with sim_th choice
-2. ✗ **Rare patterns**: Very infrequent templates (count=1-2) might be noise
-3. ✗ **Timestamp extraction**: Manual parsing required (not built-in)
-4. ✗ **Multi-line logs**: Struggles with logs spanning multiple lines
+- several templates spike in specific windows, especially kernel and fatal event patterns
+- new templates in the final 10% of logs: `15`
 
-### Which Templates Provide Insights?
+## Phase 3: Embedding + Cross-signal
 
-**Most Valuable**:
-1. **ERROR templates**: Immediately signal problems
-2. **NEW templates**: Indicate system state changes or anomalies
-3. **SPIKE templates**: Sudden increases suggest resource issues
-4. **RPC templates**: Show communication patterns and bottlenecks
+### TF-IDF clustering
 
-**Less Valuable**:
-- INFO templates: Often routine operations
-- DEBUG templates: Granular but less actionable
-- Singleton templates: Single occurrences likely represent parse errors
+- vectorization: character n-grams `(2, 3)`
+- similarity threshold for clustering: `0.7`
+- clusters found above threshold: `4`
 
-### Metrics vs Logs: What's the Difference?
+Observed cluster themes:
 
-| Aspect | Metrics | Logs |
-|---|---|---|
-| **Granularity** | Coarse (aggregated) | Fine (per-event) |
-| **Cardinality** | Low (few types) | High (many templates) |
-| **Latency** | Delayed (aggregated) | Near real-time |
-| **What they show** | *System health* | *What happened* |
-| **Anomaly type** | Resource-level | Event-level |
+1. repeated kernel info families
+2. fatal application or kernel failure families
+3. hardware / interrupt-related patterns
+4. repeated generated-status message families
 
-**When Combined**:
-- Metrics show *there's a problem* (spike in CPU/memory)
-- Logs show *why* (errors, failed operations)
-- Together: Root cause analysis becomes possible
+### Novel log injection
 
-### Key Takeaways
+Injected line:
 
-1. **Log parsing is essential**: Raw logs → templates makes analysis 100x more efficient
-2. **Template frequency is a signal**: Spikes and new templates indicate anomalies
-3. **Context matters**: Different log types require different thresholds
-4. **Multi-signal analysis wins**: Combining metrics + logs > either alone
-5. **Automated parsing**: Drain3 removes manual regex/pattern work
-
----
-
-## Knowledge Check Answers
-
-### 1. How does Drain3 Parse Tree Work?
-
-```
-Drain3 uses a hierarchical parse tree:
-
-                    Root
-                   /  |  \
-               len=1 len=2 len=3  ... (token count)
-                |     |     |
-              token token token    (first token groups)
-               /|\    /|\    /|\
-              / | \  / | \  / | \
-         Templates with    ...
-         different tokens
-         at same position
-         
-Flow: Input log → split into tokens → navigate tree by length and tokens 
-      → find matching template (by similarity) → add to cluster or create new
+```text
+GPUFAIL 1119999999 2005.06.20 R99-M9-N9-C:J99-U99 2005-06-20-23.59.59.999999 R99-M9-N9-C:J99-U99 RAS APP FATAL accelerator parity fault on memory controller
 ```
 
-**Key features**:
-- Depth limited (max 4 levels) for speed
-- Each node can have max 100 children
-- Similarity threshold controls template matching
-- Token positions determine tree path
+Result:
 
-### 2. Why Log Parsing Instead of grep?
+- Drain3 change type: `cluster_created`
+- a new template was created successfully
 
-**Grep example**:
-```bash
-# Find ERROR logs
-grep "ERROR" logs.txt
+## Phase 4: Mini Log Analyzer
 
-# But these are different logs, same problem:
-2008-07-01 ERROR: Failed to connect to node 192.168.1.5
-2008-07-02 ERROR: Failed to connect to node 192.168.1.6
-2008-07-03 ERROR: Failed to connect to node 192.168.1.7
+### Script
+
+File: `scripts/log_analyzer.py`
+
+Run:
+
+```powershell
+python scripts\log_analyzer.py data\BGL_2k.log
+python scripts\log_analyzer.py data\HDFS_2k.log
 ```
 
-**Grep sees 3 different errors**. Log parsing creates **1 template**:
+The script prints:
+
+- total lines
+- unique templates
+- top-5 templates with counts and percentages
+- templates with spikes in the last hour
+- new templates in the last hour
+
+### Cross-dataset comparison
+
+Saved to `results/dataset_comparison.csv`.
+
+| dataset | total_logs | unique_templates | avg_cluster_size |
+|---|---:|---:|---:|
+| BGL | 2000 | 151 | 13.25 |
+| HDFS | 2000 | 21 | 95.24 |
+
+Why BGL has more templates in this run:
+
+- the BGL subset contains many distinct error and kernel event families
+- the HDFS subset is more repetitive and groups into fewer, larger clusters
+
+## Reflection
+
+### Drain3 parse tot khong?
+
+Co. Drain3 hoat dong tot tren ca hai dataset that:
+
+- voi `BGL_2k`, no tach duoc nhieu ho template khac nhau, dac biet o cac log kernel va fatal
+- voi `HDFS_2k`, no gom log rat gon, chi con `21` templates cho `2,000` dong
+
+Diem manh:
+
+- khong can viet regex thu cong tu dau
+- xu ly tot cac token thay doi nhu timestamp, node id, block id
+- phu hop de chuyen raw logs thanh cac tin hieu co the dem va phan tich
+
+Diem yeu:
+
+- rat nhay voi `sim_th`
+- neu `sim_th` qua cao thi template bi vo vun
+- neu chi dung mot tin hieu don gian o muc window thi hieu qua anomaly detection van con thap tren du lieu that nhu BGL
+
+### Template nao cho insight?
+
+Dang chu y nhat:
+
+- cac template `RAS APP FATAL` hoac `RAS KERNEL FATAL`
+- cac template kernel info lap bat thuong
+- cac template moi xuat hien gan cuoi chuoi log
+
+It gia tri hon:
+
+- cac INFO lap deu va rat pho bien
+- cac template chi phan anh hoat dong nen binh thuong
+
+### Metric va log khac nhau the nao?
+
+- metric cho biet trang thai tong quat cua he thong theo thoi gian
+- log cho biet su kien cu the nao da xay ra
+
+Ket hop lai:
+
+- metric giup biet khi nao co van de
+- log parsing giup biet chuyen gi da xay ra va thuoc ho su kien nao
+
+## Knowledge Check
+
+Handwritten pages:
+
+![Handwritten Knowledge Check 1](image.png)
+
+![Handwritten Knowledge Check 2](image-1.png)
+
+### 1. Drain3 parse tree hoat dong the nao?
+
+So do don gian:
+
+```text
+root
+ └─ bucket theo so token
+     └─ branch theo token khoa
+         └─ branch theo vi tri token
+             └─ candidate templates
 ```
-2008-07-* ERROR: Failed to connect to node <IP>
+
+Luong xu ly:
+
+1. tach log thanh token
+2. di qua cay theo so token va token dac trung
+3. so sanh voi candidate templates bang do tuong tu
+4. neu du giong thi cap nhat cluster cu
+5. neu khong du giong thi tao cluster moi
+
+### 2. Vi sao can log parsing thay vi grep?
+
+`grep` chi loc chuoi tho.
+
+Vi du:
+
+```text
+APPREAD ... failed to read message prefix ...
+APPREAD ... failed to read message prefix ...
+APPREAD ... failed to read message prefix ...
 ```
 
-**Benefits**:
-- Aggregation: Group similar errors
-- Generalization: Focus on pattern, not values
-- Analysis: Template count trends reveal problems
-- Scale: Handle millions of logs efficiently
+`grep` thay nhieu dong khac nhau vi khac node, khac thoi gian.  
+Drain3 gom chung thanh mot template chung, tu do moi dem tan suat va phat hien spike duoc.
 
-### 3. Template Count Time Series for Anomaly Detection
+### 3. Template count time series la gi?
 
-**What**: Aggregating logs by template over fixed time windows (5 min)
+La chuoi thoi gian trong do moi diem la so luong template hoac so lan xuat hien cua template trong mot cua so co dinh.
 
-```
-Time     |Template A|Template B|Template C|Total|
----------+----------+----------+----------+-----+
-00:00-05 |   100    |    45    |    12    | 157 |
-00:05-10 |   102    |    48    |    11    | 161 |
-00:10-15 |   98     |    52    |    850   | 1000 ← ANOMALY (spike)
-00:15-20 |   101    |    46    |    10    | 157 |
-```
+Trong notebook nay, tin hieu chinh duoc dung la:
 
-**Why for anomaly detection**:
-- Normal: ~160 logs/5min
-- Anomaly: ~1000 logs/5min (6x increase)
-- Easy to detect with 3-sigma rule
-- Actionable: Know *when* and *what* spiked
+- so template unique trong moi cua so 30 phut
 
-### 4. Why New Templates Signal Anomalies
+Vi sao dung de detect anomaly:
 
-```
-Normal operations: See ~1100 templates, relatively stable
-Anomaly begins: New template appears with different pattern
+- thay duoc spike theo thoi gian
+- chuyen log su kien roi rac thanh tin hieu dinh luong
+- giup ap dung 3-sigma hoac Isolation Forest
 
-Example:
-- Normal error: "ERROR: Failed to write block <ID>"
-- Anomaly: "ERROR: CRITICAL_FAILURE: Hardware malfunction"
-```
+### 4. Vi sao template moi la tin hieu quan trong?
 
-**New template = unseen before = system behaving differently = ALERT!**
+Template moi nghia la he thong dang sinh ra kieu su kien chua tung thay truoc do.
 
-**Real case**:
-- Used to see 25 unique templates per day
-- New error template suddenly appears
-- Indicates new fault/failure mode
-- Essential for early detection
+Do thuong la dau hieu cua:
 
-### 5. Metrics + Logs Combined
+- loi moi
+- trang thai moi
+- thay doi cau hinh hoac thay doi hanh vi he thong
 
-**Metrics alone**:
-- Alert: CPU spike to 95%
-- Question: Why? What caused it?
+### 5. Metric cho biet gi, log cho biet gi?
 
-**Logs alone**:
-- See many ERROR templates
-- Question: Why multiple? How bad is it?
+- metric: muc do, xu huong, tinh trang tong quat
+- log: su kien chi tiet, noi dung cu the, ngu canh van hanh
 
-**Combined**:
-- CPU spike to 95% (METRIC)
-- Coincides with ERROR spike in template X (LOG)
-- Template X = "Failed query timeout"
-- Root cause: Slow database query
-- Action: Investigate database performance
+Khi ket hop:
 
----
+- metric tra loi cau hoi "khi nao co van de?"
+- log tra loi cau hoi "van de do la gi va den tu dau?"
 
-## Files Submitted
+## Files Included
 
-1. **assignment.ipynb** - Complete notebook with all 4 phases
-2. **results/top_templates.csv** - Top 10 templates export
-3. **results/tuning_results.csv** - Drain3 similarity threshold tuning
-4. **results/template_count_timeseries.png** - Time series plot with anomalies
-5. **results/dataset_comparison.csv** - HDFS vs BGL comparison
-6. **scripts/log_analyzer.py** - Reusable log analysis script
-7. **SUBMIT.md** - This submission document
-
----
-
-**Completion Date**: 2026-06-02  
-**Time Spent**: Comprehensive implementation of all phases  
-**Status**: ✓ Complete
-
+- `assignment.ipynb`
+- `results/top_templates.csv`
+- `results/tuning_results.csv`
+- `results/template_count_timeseries.png`
+- `results/dataset_comparison.csv`
+- `scripts/log_analyzer.py`
+- `SUBMIT.md`

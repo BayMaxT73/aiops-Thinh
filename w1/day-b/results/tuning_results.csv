@@ -1,0 +1,4 @@
+similarity_threshold,num_templates,avg_cluster_size
+0.3,73,27.4
+0.5,151,13.25
+0.7,1459,1.37

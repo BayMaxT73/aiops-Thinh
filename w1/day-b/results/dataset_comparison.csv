@@ -1,0 +1,3 @@
+dataset,total_logs,unique_templates,avg_cluster_size
+BGL,2000,151,13.25
+HDFS,2000,21,95.24
