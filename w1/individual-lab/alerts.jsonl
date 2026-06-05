@@ -1,0 +1,4 @@
+{"timestamp": "2026-06-05T09:59:49.386+00:00", "type": "dependency_timeout", "severity": "warning", "message": "Upstream dependency degrading: timeout_rate=11.5%, 5xx_rate=7.1%, p99_ms=369.3"}
+{"timestamp": "2026-06-05T10:00:07.496+00:00", "type": "dependency_timeout", "severity": "critical", "message": "Upstream dependency degrading: timeout_rate=25.9%, 5xx_rate=16.1%, p99_ms=822.6"}
+{"timestamp": "2026-06-05T10:00:25.570+00:00", "type": "dependency_timeout", "severity": "critical", "message": "Upstream dependency degrading: timeout_rate=37.9%, 5xx_rate=21.2%, p99_ms=1357.1"}
+{"timestamp": "2026-06-05T10:00:43.713+00:00", "type": "dependency_timeout", "severity": "critical", "message": "Upstream dependency degrading: timeout_rate=50.2%, 5xx_rate=31.0%, p99_ms=1666.5"}
