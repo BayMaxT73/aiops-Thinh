@@ -1,0 +1,106 @@
+{
+  "clusters_analyzed": 4,
+  "results": [
+    {
+      "cluster_id": "c-001-000",
+      "graph_top3": [
+        [
+          "payment-svc",
+          0.98
+        ],
+        [
+          "checkout-svc",
+          0.81
+        ],
+        [
+          "cart-svc",
+          0.58
+        ]
+      ],
+      "root_cause": "payment-svc",
+      "class": "connection_pool_exhaustion",
+      "confidence": 0.98,
+      "actions": [
+        "Rollback to v3.1",
+        "Scale pool 50 -> 100 cushion",
+        "Add pool monitor alert > 80%."
+      ],
+      "reasoning": "payment-svc ranked #1 (score=0.98) by PageRank+timestamp. Similar to INC-2025-11-08.",
+      "similar_incidents": [
+        "INC-2025-11-08",
+        "INC-2025-09-05",
+        "INC-2026-05-10"
+      ],
+      "method": "graph+retrieval"
+    },
+    {
+      "cluster_id": "c-001-001",
+      "graph_top3": [
+        [
+          "notification-svc",
+          1.0
+        ]
+      ],
+      "root_cause": "notification-svc",
+      "class": "downstream_provider",
+      "confidence": 1.0,
+      "actions": [
+        "Failover to backup provider",
+        "Multi-provider routing."
+      ],
+      "reasoning": "notification-svc ranked #1 (score=1.00) by PageRank+timestamp. Similar to INC-2026-02-08.",
+      "similar_incidents": [
+        "INC-2026-02-08",
+        "INC-2026-05-18",
+        "INC-2025-11-08"
+      ],
+      "method": "graph+retrieval"
+    },
+    {
+      "cluster_id": "c-001-002",
+      "graph_top3": [
+        [
+          "recommender-svc",
+          1.0
+        ]
+      ],
+      "root_cause": "recommender-svc",
+      "class": "batch_overlap",
+      "confidence": 1.0,
+      "actions": [
+        "Stagger schedule",
+        "Move retrain to read replica."
+      ],
+      "reasoning": "recommender-svc ranked #1 (score=1.00) by PageRank+timestamp. Similar to INC-2026-03-07.",
+      "similar_incidents": [
+        "INC-2026-03-07",
+        "INC-2026-06-02",
+        "INC-2025-10-28"
+      ],
+      "method": "graph+retrieval"
+    },
+    {
+      "cluster_id": "c-001-003",
+      "graph_top3": [
+        [
+          "search-svc",
+          1.0
+        ]
+      ],
+      "root_cause": "search-svc",
+      "class": "n_plus_1",
+      "confidence": 1.0,
+      "actions": [
+        "Batch fetch related products",
+        "Add monitoring query count / request."
+      ],
+      "reasoning": "search-svc ranked #1 (score=1.00) by PageRank+timestamp. Similar to INC-2026-01-29.",
+      "similar_incidents": [
+        "INC-2026-01-29",
+        "INC-2026-05-25",
+        "INC-2025-12-01"
+      ],
+      "method": "graph+retrieval"
+    }
+  ]
+}
