@@ -7,7 +7,7 @@ from pathlib import Path
 import yaml
 
 from decision import select_action
-from features import extract_features
+from features import TemplateMiner, extract_features
 from retrieval import retrieve_and_vote
 
 
@@ -26,7 +26,8 @@ def decide(incident_path: Path, history_path: Path, actions_path: Path) -> dict:
     history = json.loads(history_path.read_text())
     actions_catalog = yaml.safe_load(actions_path.read_text())
 
-    query_vec = extract_features(incident)
+    drain_miner = TemplateMiner() if TemplateMiner is not None else None
+    query_vec = extract_features(incident, drain_miner=drain_miner)
     retrieval_result = retrieve_and_vote(query_vec, history)
     decision = select_action(retrieval_result, actions_catalog, query_vec, env="development", dry_run=True, min_precedents=0)
 
@@ -69,6 +70,30 @@ def decide(incident_path: Path, history_path: Path, actions_path: Path) -> dict:
     }
 
 
+def _upsert_audit(audit_path: Path, entry: dict) -> None:
+    """Write entry to audit.jsonl, replacing any existing line with the same incident_id."""
+    incident_id = entry["incident_id"]
+    existing: list[dict] = []
+    if audit_path.exists():
+        for line in audit_path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line:
+                existing.append(json.loads(line))
+
+    updated = False
+    for i, record in enumerate(existing):
+        if record.get("incident_id") == incident_id:
+            existing[i] = entry
+            updated = True
+            break
+    if not updated:
+        existing.append(entry)
+
+    with audit_path.open("w", encoding="utf-8") as handle:
+        for record in existing:
+            handle.write(json.dumps(record) + "\n")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="cmd")
@@ -88,8 +113,7 @@ def main() -> int:
         _resolve_path(args.actions),
     )
     print(json.dumps(output, indent=2))
-    with Path("audit.jsonl").open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(output) + "\n")
+    _upsert_audit(Path("audit.jsonl"), output)
     return 0
 
 
