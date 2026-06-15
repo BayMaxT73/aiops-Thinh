@@ -1,3 +1,6 @@
 .ipynb_checkpoints/
 __pycache__/
 *.pyc
+
+# Ignore heavy lab data
+w3/d1/data/

@@ -1,94 +1,77 @@
-# KẾT QUẢ NGHIÊN CỨU & ĐÁNH GIÁ (FINDINGS)
+# FINDINGS
 
-## 1. Hàm tính độ tương đồng (Similarity function) ở Layer 2 và lý do lựa chọn
+## 1. Similarity function
 
-Chúng tôi sử dụng hàm tính độ tương đồng lai có trọng số (weighted hybrid similarity) kết hợp 4 tín hiệu chính:
-- `0.40 * log_sim` (Độ tương đồng của log)
-- `0.35 * trace_sim` (Độ tương đồng của trace)
-- `0.15 * svc_sim` (Độ tương đồng của danh sách service bị ảnh hưởng)
-- `0.10 * metric_sim` (Độ tương đồng của các số liệu metric delta)
+I used the required weighted hybrid similarity:
 
-**Phương án thay thế đã xem xét:** So khớp mẫu log chính xác (exact template matching).
-- **Lý do loại bỏ:** Phương án này quá cứng nhắc do có sự khác biệt về cấu trúc (schema mismatch) giữa dữ liệu sự cố thực tế (dòng log thô) và dữ liệu lịch sử (các mẫu log đã được làm sạch).
-- **Minh chứng thực tế:** Ở sự cố `E01`, việc khớp mẫu chính xác trả về `log_sim = 0.0` đối với cả hai tiền lệ bị cạn kiệt tài nguyên kết nối (`INC-2025-11-08` và `INC-2025-09-05`). Lý do là mẫu log thực tế của `E01` chứa các chuỗi như `failed to forward request to t24-service: pool exhausted` và `connectionpool: timeout acquiring connection (waited var ) attempt var`, trong khi lịch sử lưu trữ các mẫu ngắn gọn hơn.
-- **Giải pháp:** Sử dụng bộ so khớp từ trùng lặp (word-overlap matcher) (yêu cầu trùng lặp ≥ 2 từ) giúp giữ lại các tín hiệu tương đồng quan trọng, giúp hệ thống đạt kết quả đánh giá tuyệt đối `8/8` trong bài kiểm tra.
+- `0.40 * log_sim`
+- `0.35 * trace_sim`
+- `0.15 * svc_sim`
+- `0.10 * metric_sim`
 
----
+The main reason was schema mismatch between live and history data: raw logs in eval JSONs and cleaned templates in history. I considered exact template matching for logs, but it was too brittle. On `E01`, exact matching gave `log_sim = 0.0` against both pool-exhaustion precedents `INC-2025-11-08` and `INC-2025-09-05`, because the live templates were `failed to forward request to t24-service: pool exhausted` and `connectionpool: timeout acquiring connection (waited var ) attempt var`, while history only stored shortened templates. The word-overlap matcher preserved that signal and the final lab run graded `8/8`.
 
-## 2. So sánh giữa bỏ phiếu có trọng số theo kết quả (Outcome-weighted voting) và bỏ phiếu theo độ tương đồng thuần túy (Pure similarity)
+## 2. Outcome-weighted voting vs pure similarity
 
-Ví dụ thực tế rõ ràng nhất là sự cố `E05`.
+The clearest case was `E05`. Pure similarity voting produced:
 
-**Nếu bỏ phiếu theo độ tương đồng thuần túy (Pure similarity):**
 - `rollback_service = 0.785`
 - `increase_pool_size = 0.555`
 - `restart_pod = 0.225`
 
-**Khi áp dụng bỏ phiếu có trọng số theo kết quả (Outcome-weighted):**
+Outcome-weighted voting changed that to:
+
 - `rollback_service = 0.670`
 - `increase_pool_size = 0.555`
 - `restart_pod = 0.225`
 
-**Giải thích sự thay đổi:**
-Sự sụt giảm điểm số của `rollback_service` bắt nguồn từ sự cố lịch sử `INC-2026-05-10` vốn có kết quả xử lý chỉ là một phần (`partial`), do đó hệ số trọng số chỉ được tính bằng `0.5x` thay vì `1.0x` (thành công). 
-Mặc dù sự thay đổi này chưa làm đảo lộn vị trí dẫn đầu của `rollback_service` trên bộ dữ liệu kiểm thử, nó đã thu hẹp khoảng cách giữa `rollback_service` và `increase_pool_size` từ `0.230` xuống còn `0.115`. Chính sự mơ hồ (ambiguity) này là căn cứ để bộ máy quyết định leo thang sự cố `E05` lên nhóm trực vận hành (`page_oncall`) thay vì tự động thực hiện hành động thiếu an toàn.
+The drop came from `INC-2026-05-10`, a `partial` pool-exhaustion incident, which only counted at `0.5x`. That did not flip top-1 on this eval set, but it cut rollback's lead over `increase_pool_size` from `0.230` to `0.115`, which is exactly the ambiguity that made the engine escalate `E05` to `page_oncall` instead of over-committing.
 
----
+## 3. Full EV calculation
 
-## 3. Giải thích chi tiết phép tính Giá trị Kỳ vọng (Expected Value - EV) cho một sự cố cụ thể
+I used `E01` for the full calculation because it auto-acted successfully.
 
-Chúng tôi chọn sự cố `E01` (lỗi cạn kiệt pool kết nối của `payment-svc`) làm ví dụ vì hệ thống đã tự động đưa ra quyết định xử lý thành công.
+Candidate set after retrieval:
 
-Sau giai đoạn truy vấn dữ liệu (retrieval), danh sách hành động ứng viên gồm:
-- `increase_pool_size`: `vote_score = 0.573333`, `confidence = 0.396770`
-- `rollback_service`: `vote_score = 0.679999`, `confidence = 0.470588`
+- `increase_pool_size`: `vote_score=0.573333`, `confidence=0.396770`
+- `rollback_service`: `vote_score=0.679999`, `confidence=0.470588`
 
-**Các thông số tính toán Giá trị Kỳ vọng (EV):**
-- Xác suất thành công ($P_{success}$ = success_votes / total_votes):
-  - `increase_pool_size`: $P_{success} = 0.573333 / 0.573333 = 1.0$; Chi phí (cost) = $1$
-  - `rollback_service`: $P_{success} = 0.573333 / 0.679999 = 0.843138$; Chi phí (cost) = $10$
+Expected-value terms:
 
-**Tính toán độ thỏa dụng (Utility = P_success * confidence - 0.005 * cost):**
-- `increase_pool_size`: $1.0 \times 0.396770 - 0.005 \times 1 = 0.391770$
-- `rollback_service`: $0.843138 \times 0.470588 - 0.005 \times 10 = 0.346771$
+- `increase_pool_size`: `P_success = 0.573333 / 0.573333 = 1.0`; cost `= 1`
+- `rollback_service`: `P_success = 0.573333 / 0.679999 = 0.843138`; cost `= 10`
 
-**Điểm số kết hợp cuối cùng (Combined Score = Utility + 0.05 * vote_score):**
-- `increase_pool_size`: $0.391770 + 0.05 \times 0.573333 = 0.420437$
-- `rollback_service`: $0.346771 + 0.05 \times 0.679999 = 0.380771$
+Utility:
 
-**Kết luận:** Hành động `increase_pool_size` giành chiến thắng với khoảng cách là `0.039666`, và quyết định tự động thực thi này hoàn toàn trùng khớp với kết quả mong đợi trong `eval/expected.json`.
+- `increase_pool_size`: `1.0 * 0.396770 - 0.005 * 1 = 0.391770`
+- `rollback_service`: `0.843138 * 0.470588 - 0.005 * 10 = 0.346771`
 
----
+Combined score:
 
-## 4. Các trường hợp hệ thống quyết định leo thang (page_oncall) thay vì tự động xử lý
+- `increase_pool_size`: `0.391770 + 0.05 * 0.573333 = 0.420437`
+- `rollback_service`: `0.346771 + 0.05 * 0.679999 = 0.380771`
 
-Hệ thống quyết định leo thang lên con người (`page_oncall`) trong 6 sự cố sau:
-- `E02` ở độ tin cậy `0.33` với lý do `conflicting_evidence` (Bằng chứng xung đột)
-- `E04` ở độ tin cậy `0.30` với lý do `ood` (Dữ liệu ngoài phân phối / Chưa từng gặp trong lịch sử)
-- `E05` ở độ tin cậy `0.325` với lý do `near_tie` (Điểm số quá sát sao giữa các hành động)
-- `E06` ở độ tin cậy `0.334286` với lý do `conflicting_evidence` (Bằng chứng xung đột)
-- `E07` ở độ tin cậy `0.60` với lý do `ood` (Dữ liệu ngoài phân phối)
-- `E08` ở độ tin cậy `0.30` với lý do `ood` (Dữ liệu ngoài phân phối)
+`increase_pool_size` won by `0.039666`, and the grader accepted it for `E01`.
 
-**Đánh giá độ chính xác:** 
-Tất cả 6 quyết định leo thang này đều **hoàn toàn chính xác** khi đối chiếu với `eval/expected.json`, vì tất cả các trường hợp này đều chấp nhận hành động `page_oncall`. Đồng thời, 2 trường hợp tự động xử lý còn lại cũng chính xác (`E01 -> increase_pool_size` và `E03 -> rollback_service`).
+## 4. Escalations
 
----
+The lab engine escalated on six incidents:
 
-## 5. Loại sự cố dễ khiến hệ thống đưa ra quyết định sai sót nhất và đề xuất cải tiến
+- `E02` at confidence `0.33`, reason `conflicting_evidence`
+- `E04` at confidence `0.30`, reason `ood`
+- `E05` at confidence `0.325`, reason `near_tie`
+- `E06` at confidence `0.334286`, reason `conflicting_evidence`
+- `E07` at confidence `0.60`, reason `ood`
+- `E08` at confidence `0.30`, reason `ood`
 
-**Loại sự cố dễ gây lỗi nhất:** 
-Các sự cố xảy ra ở tầng hạ tầng mới (novel infra) hoặc mặt điều khiển (control-plane) có cách biểu diễn topo liên kết dịch vụ (service edges) tương tự các lỗi quen thuộc nhưng mang ngữ nghĩa và nguyên nhân gốc hoàn toàn mới (điển hình như sự cố dạng `E07`).
-Trong quá trình chạy thử nghiệm, `E07` đạt điểm tương đồng cao nhất `best_sim = 0.60` vì chia sẻ chung liên kết `checkout-svc -> inventory-svc` và cùng các dịch vụ bị ảnh hưởng, dù nguyên nhân gốc thực tế là do nghẽn API Kubernetes (`k8s_api_throttle`) kết hợp lỗi bộ nhớ đệm lỗi thời (`informer-cache-stale`).
+All six were correct against `eval/expected.json`, because every one of those incidents accepts `page_oncall`. The two non-escalations were also correct: `E01 -> increase_pool_size` and `E03 -> rollback_service`.
 
-**Đề xuất cải tiến cụ thể:**
-Xây dựng một bộ tái xếp hạng ngữ nghĩa dựa trên topo (topology-aware semantic reranker) để chấm điểm các từ khóa kích hoạt cảnh báo (trigger-rule tokens) và các vector đặc trưng (embeddings) của mẫu log ngay sau bước lọc thô bằng trọng số tương đồng.
+## 5. Most likely breakage class
 
-**Lý do chưa triển khai trong giới hạn thời gian:**
-Tập dữ liệu lịch sử sự cố quá nhỏ (chỉ khoảng 30 sự cố). Việc tích hợp một bộ tái xếp hạng dựa trên mô hình học máy phức tạp hoặc embedding sẽ cực kỳ khó hiệu chuẩn (calibrate), dễ dẫn đến hiện tượng quá khớp (overfitting), và tốn kém hơn nhiều so với các quy tắc tường minh, dễ kiểm toán hiện tại.
+The most likely breakage class is novel infra or control-plane incidents that reuse familiar service edges but have new semantics, basically the `E07` shape. In my run, `E07` still had `best_sim = 0.60` because it shared the `checkout-svc -> inventory-svc` edge and the same affected service, even though the real pattern was `k8s_api_throttle` plus `informer-cache-stale`.
 
----
+The concrete improvement would be a small topology-aware semantic reranker that scores trigger-rule tokens and log-template embeddings after the coarse weighted retrieval step. I did not implement that because the history corpus is only about 30 incidents, so adding a learned or embedding-heavy reranker would have been harder to calibrate than the current hand-auditable rules within the lab time budget.
 
-## Lưu ý về trạng thái hiện tại của Repo
+## Note On Current Repo State
 
-Repository hiện có thêm các khung mã nguồn hỗ trợ chế độ hoạt động thực tế (live-mode scaffolding) cho Kafka, Redis, Qdrant, PostgreSQL và Kubernetes. Những phần bổ sung này không nằm trong phạm vi đánh giá điểm số của Lab nêu trên; các phát hiện và ví dụ số liệu trong tài liệu này đề cập trực tiếp đến luồng đánh giá ngoại tuyến (offline eval) được điều khiển bởi `engine.py` / `engine_compat.py` và các sự cố từ `eval/E01` đến `eval/E08`.
+The repo now also contains live-mode scaffolding for Kafka, Redis, Qdrant, PostgreSQL, and Kubernetes execution. Those additions were not part of the original graded lab run above; the findings and numeric examples in this document refer specifically to the offline eval workflow driven by `engine.py` / `engine_compat.py` and `eval/E01` through `eval/E08`.
