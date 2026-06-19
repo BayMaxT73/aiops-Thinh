@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 
 import requests
 
-PROM_URL = "http://localhost:9090"
+PROM_URL = "http://localhost:9190"
 
 DEFAULT_QUERIES = [
     "rate(http_requests_total[1m])",

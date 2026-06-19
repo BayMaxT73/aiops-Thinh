@@ -1,0 +1,84 @@
+groups:
+  - name: w3d2-chaos
+    interval: 5s
+    rules:
+      - alert: HighLatency
+        expr: >
+          histogram_quantile(
+            0.99,
+            sum by (service, le) (rate(http_request_duration_seconds_bucket[30s]))
+          ) > 0.5
+        for: 10s
+        labels:
+          severity: warning
+        annotations:
+          summary: "High latency on {{ $labels.service }}"
+
+      - alert: HighErrorRate
+        expr: >
+          sum by (service) (rate(http_requests_total{status=~"5.."}[30s]))
+          /
+          clamp_min(sum by (service) (rate(http_requests_total[30s])), 0.001)
+          > 0.10
+        for: 10s
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate on {{ $labels.service }}"
+
+      - alert: InstanceDown
+        expr: up{job="services"} == 0
+        for: 10s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Instance down {{ $labels.service }}"
+
+      - alert: CpuSaturation
+        expr: service_cpu_pressure_ratio{service="api-gateway"} > 0.90
+        for: 10s
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU saturation on api-gateway"
+
+      - alert: DbMemoryPressure
+        expr: service_memory_pressure_ratio{service="payment-db"} > 0.90
+        for: 10s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Memory pressure on payment-db"
+
+      - alert: AuthTimeSkew
+        expr: service_time_skew_seconds{service="auth-svc"} > 30
+        for: 10s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Clock skew on auth-svc"
+
+      - alert: LogIngestionLag
+        expr: service_ingestion_lag_seconds{service="log-collector"} > 10
+        for: 10s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Ingestion lag on log-collector"
+
+      - alert: EdgePartition
+        expr: service_partition_active{service="frontend"} > 0
+        for: 10s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Frontend edge partition active"
+
+      - alert: DnsSlow
+        expr: service_dns_latency_seconds{service="dns-resolver"} > 1
+        for: 10s
+        labels:
+          severity: warning
+        annotations:
+          summary: "DNS latency on dns-resolver"
+

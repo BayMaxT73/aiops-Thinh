@@ -1,0 +1,64 @@
+services:
+  frontend:
+    kind: edge
+    depends_on:
+      - api-gateway
+      - dns-resolver
+
+  api-gateway:
+    kind: application
+    depends_on:
+      - auth-svc
+      - payment-svc
+      - inventory-svc
+      - checkout-svc
+      - notification-svc
+      - cache-svc
+      - dns-resolver
+
+  checkout-svc:
+    kind: application
+    depends_on:
+      - payment-svc
+      - inventory-svc
+      - notification-svc
+      - dns-resolver
+
+  payment-svc:
+    kind: application
+    depends_on:
+      - payment-db
+      - cache-svc
+      - dns-resolver
+
+  inventory-svc:
+    kind: application
+    depends_on:
+      - cache-svc
+      - dns-resolver
+
+  auth-svc:
+    kind: application
+    depends_on:
+      - dns-resolver
+
+  notification-svc:
+    kind: application
+    depends_on:
+      - dns-resolver
+
+  payment-db:
+    kind: infrastructure
+    depends_on: []
+
+  log-collector:
+    kind: infrastructure
+    depends_on: []
+
+  dns-resolver:
+    kind: infrastructure
+    depends_on: []
+
+  cache-svc:
+    kind: infrastructure
+    depends_on: []

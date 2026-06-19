@@ -1,0 +1,180 @@
+networks:
+  w3d2:
+    driver: bridge
+
+x-python-service: &python-service
+  image: python:3.12-slim
+  working_dir: /app
+  volumes:
+    - ./configs/services/service.py:/app/service.py:ro
+    - ./runtime/faults:/runtime/faults
+  command: ["python", "/app/service.py"]
+  networks: [w3d2]
+
+services:
+  frontend:
+    <<: *python-service
+    container_name: w3d2-frontend
+    environment:
+      SERVICE_NAME: frontend
+      SERVICE_PORT: "8080"
+      BASE_LATENCY_MS: "45"
+      JITTER_MS: "10"
+      FAIL_RATE: "0.01"
+      SERVICE_ROLE: edge
+    ports: ["8080:8080"]
+
+  api-gateway:
+    <<: *python-service
+    container_name: w3d2-api-gateway
+    environment:
+      SERVICE_NAME: api-gateway
+      SERVICE_PORT: "8080"
+      BASE_LATENCY_MS: "80"
+      JITTER_MS: "15"
+      FAIL_RATE: "0.01"
+      SERVICE_ROLE: app
+    ports: ["8081:8080"]
+
+  payment-svc:
+    <<: *python-service
+    container_name: w3d2-payment-svc
+    environment:
+      SERVICE_NAME: payment-svc
+      SERVICE_PORT: "8080"
+      BASE_LATENCY_MS: "120"
+      JITTER_MS: "20"
+      FAIL_RATE: "0.02"
+      SERVICE_ROLE: app
+    ports: ["8082:8080"]
+
+  inventory-svc:
+    <<: *python-service
+    container_name: w3d2-inventory-svc
+    environment:
+      SERVICE_NAME: inventory-svc
+      SERVICE_PORT: "8080"
+      BASE_LATENCY_MS: "40"
+      JITTER_MS: "8"
+      FAIL_RATE: "0.01"
+      SERVICE_ROLE: app
+    ports: ["8083:8080"]
+
+  notification-svc:
+    <<: *python-service
+    container_name: w3d2-notification-svc
+    environment:
+      SERVICE_NAME: notification-svc
+      SERVICE_PORT: "8080"
+      BASE_LATENCY_MS: "60"
+      JITTER_MS: "12"
+      FAIL_RATE: "0.01"
+      SERVICE_ROLE: app
+    ports: ["8084:8080"]
+
+  checkout-svc:
+    <<: *python-service
+    container_name: w3d2-checkout-svc
+    environment:
+      SERVICE_NAME: checkout-svc
+      SERVICE_PORT: "8080"
+      BASE_LATENCY_MS: "150"
+      JITTER_MS: "25"
+      FAIL_RATE: "0.015"
+      SERVICE_ROLE: app
+    ports: ["8085:8080"]
+
+  auth-svc:
+    <<: *python-service
+    container_name: w3d2-auth-svc
+    environment:
+      SERVICE_NAME: auth-svc
+      SERVICE_PORT: "8080"
+      BASE_LATENCY_MS: "35"
+      JITTER_MS: "8"
+      FAIL_RATE: "0.005"
+      SERVICE_ROLE: app
+    ports: ["8086:8080"]
+
+  payment-db:
+    <<: *python-service
+    container_name: w3d2-payment-db
+    environment:
+      SERVICE_NAME: payment-db
+      SERVICE_PORT: "8080"
+      BASE_LATENCY_MS: "15"
+      JITTER_MS: "3"
+      FAIL_RATE: "0.0"
+      SERVICE_ROLE: infra
+    ports: ["8087:8080"]
+
+  log-collector:
+    <<: *python-service
+    container_name: w3d2-log-collector
+    environment:
+      SERVICE_NAME: log-collector
+      SERVICE_PORT: "8080"
+      BASE_LATENCY_MS: "20"
+      JITTER_MS: "5"
+      FAIL_RATE: "0.0"
+      SERVICE_ROLE: infra
+    ports: ["8088:8080"]
+
+  dns-resolver:
+    <<: *python-service
+    container_name: w3d2-dns-resolver
+    environment:
+      SERVICE_NAME: dns-resolver
+      SERVICE_PORT: "8080"
+      BASE_LATENCY_MS: "5"
+      JITTER_MS: "2"
+      FAIL_RATE: "0.0"
+      SERVICE_ROLE: infra
+    ports: ["8089:8080"]
+
+  cache-svc:
+    <<: *python-service
+    container_name: w3d2-cache-svc
+    environment:
+      SERVICE_NAME: cache-svc
+      SERVICE_PORT: "8080"
+      BASE_LATENCY_MS: "10"
+      JITTER_MS: "2"
+      FAIL_RATE: "0.0"
+      SERVICE_ROLE: infra
+    ports: ["8090:8080"]
+
+  pipeline:
+    image: python:3.12-slim
+    container_name: w3d2-pipeline
+    working_dir: /app
+    volumes:
+      - ./pipeline/mock_pipeline_api.py:/app/mock_pipeline_api.py:ro
+      - ./runtime:/runtime
+    command: ["python", "/app/mock_pipeline_api.py"]
+    ports: ["8000:8000"]
+    networks: [w3d2]
+
+  prometheus:
+    image: prom/prometheus:v2.51.2
+    container_name: w3d2-prometheus
+    volumes:
+      - ./configs/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./configs/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=2h
+      - --web.enable-lifecycle
+    ports: ["9190:9090"]
+    networks: [w3d2]
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: w3d2-alertmanager
+    volumes:
+      - ./configs/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    ports: ["9193:9093"]
+    networks: [w3d2]

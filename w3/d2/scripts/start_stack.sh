@@ -1,16 +1,23 @@
 #!/usr/bin/env bash
-# STUB — wire to your docker-compose. Pack does not ship a stack.
-set -e
-echo "=== start_stack.sh STUB ==="
-echo "This pack does NOT ship docker-compose.yml. Wire your own stack here."
-echo ""
-echo "Expected behavior:"
-echo "  1. docker compose up -d (your 10-service stack)"
-echo "  2. wait for all healthchecks pass"
-echo "  3. wait for AIOps pipeline /alerts endpoint to respond 200"
-echo ""
-echo "Example:"
-echo "  docker compose up -d"
-echo "  timeout 120 bash -c 'until curl -sf http://localhost:8000/alerts?since=0 >/dev/null; do sleep 2; done'"
-echo "  echo stack ready"
-exit 1
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
+
+mkdir -p runtime/faults
+: > runtime/alert_history.jsonl
+: > runtime/fault_history.jsonl
+
+docker compose down --remove-orphans >/dev/null 2>&1 || true
+docker compose up -d
+
+echo "Waiting for frontend..."
+until curl -sf http://localhost:8080/health >/dev/null; do sleep 2; done
+
+echo "Waiting for pipeline..."
+until curl -sf http://localhost:8000/health >/dev/null; do sleep 2; done
+
+echo "Waiting for Prometheus..."
+until curl -sf http://localhost:9190/-/healthy >/dev/null; do sleep 2; done
+
+echo "Stack ready."
