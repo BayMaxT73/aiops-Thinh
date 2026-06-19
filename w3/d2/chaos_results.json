@@ -1,0 +1,102 @@
+[
+  {
+    "id": 1,
+    "name": "payment_latency",
+    "detected": true,
+    "mttd": 28,
+    "rca_service": "payment-svc",
+    "rca_correct": true,
+    "symptom": "Steady-state: probe pass-rate >= 99%, p99 latency < 500ms.\nInjecting 500ms \u00c2\u00b1 100ms delay on payment-svc network egress for 60s,\npipeline detector fires latency anomaly within 30s and RCA picks payment-svc.\nprobe pass-rate may drop to 70-80% during inject (acceptable).\n",
+    "suspected_cause_in_pipeline": "Predicted=payment-svc, Expected=payment-svc"
+  },
+  {
+    "id": 2,
+    "name": "payment_loss",
+    "detected": true,
+    "mttd": 35,
+    "rca_service": "payment-svc",
+    "rca_correct": true,
+    "symptom": "Steady-state: probe pass-rate >= 99%.\nInjecting 30% network loss on payment-svc for 60s. \nDetector identifies error_rate spike within 30s, and RCA picks payment-svc.\n",
+    "suspected_cause_in_pipeline": "Predicted=payment-svc, Expected=payment-svc"
+  },
+  {
+    "id": 3,
+    "name": "inventory_kill",
+    "detected": true,
+    "mttd": 45,
+    "rca_service": "inventory-svc",
+    "rca_correct": true,
+    "symptom": "Steady-state: probe pass-rate >= 99%.\nKill inventory-svc pod every 60s. Detector fires availability alert.\nRCA picks inventory-svc.\n",
+    "suspected_cause_in_pipeline": "Predicted=inventory-svc, Expected=inventory-svc"
+  },
+  {
+    "id": 4,
+    "name": "gateway_cpu",
+    "detected": true,
+    "mttd": 50,
+    "rca_service": "api-gateway",
+    "rca_correct": true,
+    "symptom": "Steady-state: probe pass-rate >= 99%.\nStress api-gateway CPU to 90%. Detector fires cascade latency across all downstream.\nRCA picks api-gateway.\n",
+    "suspected_cause_in_pipeline": "Predicted=api-gateway, Expected=api-gateway"
+  },
+  {
+    "id": 5,
+    "name": "payment_db_mem",
+    "detected": false,
+    "mttd": null,
+    "rca_service": null,
+    "rca_correct": false,
+    "symptom": "Steady-state: probe pass-rate >= 99%.\nFill memory to 95% on payment-db. Detector catches connection pool exhaustion.\nRCA picks payment-db.\n",
+    "suspected_cause_in_pipeline": "No alert generated"
+  },
+  {
+    "id": 6,
+    "name": "auth_clock",
+    "detected": true,
+    "mttd": 25,
+    "rca_service": "auth-svc",
+    "rca_correct": true,
+    "symptom": "Steady-state: auth requests succeed.\nSkew clock by +60s on auth-svc. Detector catches JWT/cert validation failures.\nRCA picks auth-svc.\n",
+    "suspected_cause_in_pipeline": "Predicted=auth-svc, Expected=auth-svc"
+  },
+  {
+    "id": 7,
+    "name": "log_disk",
+    "detected": false,
+    "mttd": null,
+    "rca_service": null,
+    "rca_correct": false,
+    "symptom": "Steady-state: log ingestion latency is low.\nFill disk to 95% on log-collector. Meta-monitoring catches ingestion lag.\nRCA picks log-collector.\n",
+    "suspected_cause_in_pipeline": "No alert generated"
+  },
+  {
+    "id": 8,
+    "name": "edge_partition",
+    "detected": true,
+    "mttd": 20,
+    "rca_service": "frontend",
+    "rca_correct": true,
+    "symptom": "Steady-state: probe pass-rate >= 99%.\nFull network partition for 30s between frontend and gateway. \nDetector catches all-downstream timeout. RCA picks edge (frontend).\n",
+    "suspected_cause_in_pipeline": "Predicted=frontend, Expected=frontend"
+  },
+  {
+    "id": 9,
+    "name": "dns_slow",
+    "detected": true,
+    "mttd": 40,
+    "rca_service": "api-gateway",
+    "rca_correct": false,
+    "symptom": "Steady-state: resolution < 50ms.\nSlow DNS lookup by +2s. Detector catches intermittent errors. \nRCA is topology dependent, might pick dns-resolver.\n",
+    "suspected_cause_in_pipeline": "Predicted=api-gateway, Expected=dns-resolver"
+  },
+  {
+    "id": 10,
+    "name": "checkout_retry_storm",
+    "detected": true,
+    "mttd": 30,
+    "rca_service": "payment-svc",
+    "rca_correct": true,
+    "symptom": "Steady-state: probe pass-rate >= 99%.\nInjecting 20% HTTP 500 on checkout-svc responses for 90s, client retries\namplify load on upstream payment-svc + inventory-svc. Pipeline must NOT\npick checkout-svc as root (it's the symptom carrier, not cause). RCA\nshould pick payment-svc OR inventory-svc (whichever shows queue depth).\n",
+    "suspected_cause_in_pipeline": "Predicted=payment-svc, Expected=NOT checkout-svc"
+  }
+]
