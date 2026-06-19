@@ -1,0 +1,10 @@
+﻿[
+  {
+    "fire_ts": 1781864795,
+    "timestamp": 1781864795,
+    "name": "HighLatencyRegex",
+    "alertname": "HighLatencyRegex",
+    "service": "regex-edge",
+    "severity": "critical"
+  }
+]

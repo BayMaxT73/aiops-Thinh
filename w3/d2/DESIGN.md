@@ -52,7 +52,7 @@ d2/
 | R10 | Runner dispatches all fault classes | `chaos_runner.py` | Done |
 | R11 | Scoreboard prints all requested summary fields | `chaos_runner.py`, `scripts/score_run.py` | Done |
 | R12 | Results persist to JSON | `chaos_results.json`, `chaos_runner.py` | Done |
-| R13 | Baseline capture works against Prometheus | `scripts/capture_baseline.py`, `runtime/baseline_smoke.json` | Done |
+| R13 | Baseline capture works against Prometheus | `scripts/capture_baseline.py`, `chaos_report.md` | Done |
 | R14 | Service dependency mapping exists | `configs/service_topology.yaml` | Done |
 | R15 | RCA normalization uses topology | `chaos_runner.py` | Done |
 | R16 | DNS infra misattribution case is handled | `chaos_results.json`, `chaos_runner.py` | Done |
@@ -86,6 +86,8 @@ Verified locally on the Docker stack in this repository:
   - Prometheus `9190` healthy
 - injector smoke test:
   - `latency` on `payment-svc` emitted `/alerts` and correct `/rca`
+- baseline capture smoke test:
+  - `scripts/capture_baseline.py` can write `runtime/baseline_smoke.json` when run against the local Prometheus stack; the generated file is runtime-only and is not committed
 - runner smoke test:
   - single-experiment run passed `1/1`
 - full suite:

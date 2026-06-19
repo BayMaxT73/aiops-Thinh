@@ -1,0 +1,67 @@
+﻿[
+  {
+    "ts": "2026-06-19T10:26:34.1971426Z",
+    "source": "inject",
+    "event": "fault_injected",
+    "service": "regex-edge",
+    "detail": "Cloudflare-style regex rule was enabled in the edge request path."
+  },
+  {
+    "ts": "2026-06-19T10:26:34.612906Z",
+    "source": "app",
+    "event": "regex_rule_active",
+    "service": "regex-edge",
+    "detail": "The request filter began evaluating the pathological regex under live traffic."
+  },
+  {
+    "ts": "2026-06-19T10:26:34.623854Z",
+    "source": "app",
+    "event": "user_visible_timeout",
+    "service": "regex-edge",
+    "latency_ms": 2600.0,
+    "detail": "The first synthetic request exceeded the user-visible timeout budget."
+  },
+  {
+    "ts": "2026-06-19T10:26:35.421814Z",
+    "source": "pipeline",
+    "event": "alert_fired",
+    "service": "regex-edge",
+    "alertname": "HighLatencyRegex",
+    "detail": "The AIOps detector raised a critical latency alert after the regex CPU spike."
+  },
+  {
+    "ts": "2026-06-19T10:26:35.433204Z",
+    "source": "pipeline",
+    "event": "rca_ready",
+    "service": "regex-edge",
+    "detail": "The pipeline published RCA pointing to the edge regex service."
+  },
+  {
+    "ts": "2026-06-19T10:27:02.6714109Z",
+    "source": "ops",
+    "event": "oncall_ack",
+    "owner": "primary-oncall",
+    "detail": "The primary on-call acknowledged the page and started mitigation."
+  },
+  {
+    "ts": "2026-06-19T10:27:03.7124761Z",
+    "source": "ops",
+    "event": "root_cause_confirmed",
+    "service": "regex-edge",
+    "detail": "The request filter was confirmed as the CPU amplification source."
+  },
+  {
+    "ts": "2026-06-19T10:27:04.7187620Z",
+    "source": "ops",
+    "event": "mitigation_applied",
+    "action": "disable_faulty_rule",
+    "detail": "The faulty WAF rule was disabled to stop catastrophic backtracking."
+  },
+  {
+    "ts": "2026-06-19T10:27:04.7214853Z",
+    "source": "ops",
+    "event": "full_recovery",
+    "service": "regex-edge",
+    "detail": "Latency returned to baseline immediately after the rule rollback."
+  }
+]

@@ -1,0 +1,20 @@
+services:
+  api:
+    image: python:3.11-slim
+    container_name: d3-regex-api
+    working_dir: /app
+    volumes:
+      - ./app:/app
+      - ../runtime:/runtime
+    command: sh -c "pip install -q fastapi uvicorn && uvicorn main:app --host 0.0.0.0 --port 8888"
+    ports: ["8888:8888"]
+
+  pipeline:
+    image: python:3.11-slim
+    container_name: d3-pipeline
+    working_dir: /app
+    volumes:
+      - ../pipeline:/app
+      - ../runtime:/runtime
+    command: sh -c "python mock_pipeline_api.py"
+    ports: ["8000:8000"]

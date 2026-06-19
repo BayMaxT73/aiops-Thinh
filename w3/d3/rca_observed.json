@@ -1,0 +1,8 @@
+﻿{
+  "window_start": 1781864794,
+  "window_end": 1781865394,
+  "root_cause_service": "regex-edge",
+  "confidence": 0.88,
+  "failure_mode": "catastrophic_backtracking",
+  "reason": "regex evaluation latency spiked before edge-wide failure"
+}

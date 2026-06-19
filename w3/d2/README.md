@@ -60,6 +60,7 @@ Health endpoints:
 ## Run the suite
 
 ```bash
+python scripts/capture_baseline.py --duration 60 --out runtime/baseline_smoke.json
 python chaos_runner.py --out chaos_results.json
 python run_scoreboard.py
 ```

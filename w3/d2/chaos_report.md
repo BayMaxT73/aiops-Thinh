@@ -63,8 +63,9 @@ and `7` both pass.
 
 - `scripts/start_stack.sh` starts the full Docker stack successfully
 - `scripts/inject_fault.py` emits alert history and fault history correctly
-- `scripts/capture_baseline.py` captured a smoke baseline into
-  `runtime/baseline_smoke.json`
+- `scripts/capture_baseline.py` can write a smoke baseline into
+  `runtime/baseline_smoke.json` when executed against the local Prometheus stack;
+  generated baseline artifacts are runtime-only and are not committed
 - `chaos_runner.py` completed the full suite and wrote `chaos_results.json`
 
 ## 5. Final conclusion
